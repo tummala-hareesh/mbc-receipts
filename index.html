@@ -1,780 +1,521 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Milton Badminton Club — Receipt Generator</title>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;900&family=Barlow+Condensed:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
-    /* ── RESET & BASE ──────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --navy-dark:   #1a2a6c;
-      --navy-mid:    #243080;
-      --navy-light:  #2d3db0;
-      --navy-header: #1e2f8c;
-      --accent-red:  #c0392b;
-      --accent-blue: #5b7de8;
-      --row-alt:     #f4f6fb;
-      --border:      #dde3f0;
-      --label-color: #7a869a;
-      --text-dark:   #1c2340;
-      --text-mid:    #3a4464;
-      --white:       #ffffff;
-      --section-bg:  #ffffff;
-      --page-bg:     #eef1f8;
+      --navy-dark:  #1a2a6c; --navy-mid: #243080; --navy-light: #2d3db0;
+      --border: #dde3f0; --label: #7a869a; --text: #1c2340;
+      --text-mid: #3a4464; --white: #ffffff; --page-bg: #eef1f8;
     }
+    body { font-family:'Inter',sans-serif; background:var(--page-bg); color:var(--text); min-height:100vh; }
 
-    body {
-      font-family: 'Inter', sans-serif;
-      background: var(--page-bg);
-      color: var(--text-dark);
-      min-height: 100vh;
+    /* LOCK */
+    #lock-screen {
+      position:fixed; inset:0; z-index:9999;
+      background:linear-gradient(145deg,#111827,#1a2a6c);
+      display:flex; align-items:center; justify-content:center;
     }
+    .lock-card {
+      background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12);
+      border-radius:20px; padding:48px 44px 40px; width:100%; max-width:380px;
+      text-align:center; backdrop-filter:blur(12px); box-shadow:0 24px 80px rgba(0,0,0,.5);
+    }
+    .lock-icon {
+      width:56px; height:56px; background:rgba(255,255,255,.08); border-radius:16px;
+      display:flex; align-items:center; justify-content:center; margin:0 auto 20px;
+    }
+    .lock-card h1 { font-family:'Barlow',sans-serif; font-size:22px; font-weight:800; color:#fff; margin-bottom:6px; }
+    .lock-card p  { font-size:13px; color:rgba(255,255,255,.45); margin-bottom:28px; }
+    .lock-input {
+      width:100%; padding:12px 16px; background:rgba(255,255,255,.08);
+      border:1.5px solid rgba(255,255,255,.15); border-radius:10px;
+      font-family:'Inter',sans-serif; font-size:15px; color:#fff;
+      outline:none; text-align:center; letter-spacing:.15em; transition:border-color .2s;
+    }
+    .lock-input::placeholder { color:rgba(255,255,255,.25); letter-spacing:0; }
+    .lock-input:focus { border-color:rgba(255,255,255,.45); }
+    .lock-btn {
+      margin-top:14px; width:100%; padding:13px;
+      background:linear-gradient(135deg,#2d3db0,#4b5fe0); color:#fff;
+      font-family:'Barlow',sans-serif; font-size:15px; font-weight:700;
+      letter-spacing:.05em; border:none; border-radius:10px; cursor:pointer;
+      box-shadow:0 4px 20px rgba(45,61,176,.5); transition:opacity .2s,transform .15s;
+    }
+    .lock-btn:hover { opacity:.9; transform:translateY(-1px); }
+    .lock-error { margin-top:12px; font-size:12.5px; color:#f87171; min-height:18px; }
+    .lock-footer { margin-top:24px; font-size:11px; color:rgba(255,255,255,.2); }
 
-    /* ── EDITOR SHELL (hidden on print) ─────────────── */
+    /* LAYOUT */
     .editor-shell {
-      display: flex;
-      gap: 32px;
-      padding: 40px 40px 60px;
-      max-width: 1320px;
-      margin: 0 auto;
+      display:flex; gap:32px; padding:40px 40px 60px;
+      max-width:1320px; margin:0 auto;
     }
 
-    /* ── FORM PANEL ──────────────────────────────────── */
+    /* FORM PANEL */
     .form-panel {
-      flex: 0 0 360px;
-      background: var(--white);
-      border-radius: 16px;
-      padding: 32px 28px;
-      box-shadow: 0 4px 24px rgba(26,42,108,.10);
-      height: fit-content;
-      position: sticky;
-      top: 32px;
+      flex:0 0 360px; background:var(--white); border-radius:16px;
+      padding:28px 24px 32px; box-shadow:0 4px 24px rgba(26,42,108,.10);
+      height:fit-content; position:sticky; top:32px;
     }
-
     .form-panel h2 {
-      font-family: 'Barlow', sans-serif;
-      font-size: 20px;
-      font-weight: 700;
-      color: var(--navy-dark);
-      margin-bottom: 24px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
+      font-family:'Barlow',sans-serif; font-size:19px; font-weight:700;
+      color:var(--navy-dark); margin-bottom:20px;
+      display:flex; align-items:center; gap:10px;
     }
-    .form-panel h2 span.icon {
-      width: 32px; height: 32px;
-      background: var(--navy-dark);
-      border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
+    .form-panel h2 .icon {
+      width:32px; height:32px; background:var(--navy-dark); border-radius:8px;
+      display:flex; align-items:center; justify-content:center;
     }
-    .form-panel h2 span.icon svg { fill: white; }
+    .form-panel h2 .icon svg { fill:white; }
+    .sec-head { display:flex; align-items:center; gap:8px; margin:22px 0 10px; }
+    .sec-head .sec-label { font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--label); }
+    .locked-badge {
+      display:flex; align-items:center; gap:4px; background:#f3f4f8;
+      border:1px solid #e0e4ef; border-radius:20px; padding:2px 8px;
+      font-size:10px; font-weight:600; color:#8899aa;
+    }
+    .locked-field {
+      display:flex; align-items:baseline; gap:8px; padding:8px 10px;
+      background:#f8f9fd; border:1.5px solid #eaecf5; border-radius:8px; margin-top:6px;
+    }
+    .locked-field .lf-key { flex:0 0 88px; font-size:11.5px; color:var(--label); }
+    .locked-field .lf-val { font-size:12.5px; font-weight:600; color:#4a5580; }
+    .field-wrap { margin-top:10px; }
+    .field-wrap label { display:block; font-size:11.5px; font-weight:600; color:var(--text-mid); margin-bottom:4px; }
+    input[type=text],input[type=email],input[type=date],input[type=number],select {
+      width:100%; padding:9px 12px; border:1.5px solid var(--border); border-radius:8px;
+      font-family:'Inter',sans-serif; font-size:13.5px; color:var(--text);
+      background:#fafbff; transition:border-color .2s; outline:none;
+    }
+    input:focus,select:focus { border-color:var(--navy-light); background:var(--white); }
+    .receipt-no-wrap { display:flex; gap:8px; }
+    .receipt-no-wrap input { flex:1; }
+    .btn-regen {
+      padding:0 13px; background:var(--navy-dark); color:#fff; border:none;
+      border-radius:8px; cursor:pointer; font-size:17px; transition:background .2s;
+    }
+    .btn-regen:hover { background:var(--navy-light); }
+    .btn-row { display:flex; gap:10px; margin-top:24px; }
+    .btn-preview,.btn-pdf {
+      flex:1; padding:12px 8px; font-family:'Barlow',sans-serif; font-size:14px;
+      font-weight:700; letter-spacing:.04em; border:none; border-radius:10px;
+      cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px;
+      transition:transform .15s,box-shadow .15s,background .15s;
+    }
+    .btn-preview { background:#fff; color:var(--navy-dark); border:2px solid var(--navy-dark); }
+    .btn-preview:hover { background:#f0f2ff; }
+    .btn-pdf {
+      background:linear-gradient(135deg,var(--navy-dark),var(--navy-light));
+      color:#fff; box-shadow:0 4px 16px rgba(26,42,108,.28);
+    }
+    .btn-pdf:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(26,42,108,.35); }
 
-    .section-label {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      color: var(--label-color);
-      margin: 20px 0 10px;
+    /* MODAL */
+    #preview-modal {
+      display:none; position:fixed; inset:0; z-index:8888;
+      background:rgba(10,15,40,.78); backdrop-filter:blur(6px);
+      align-items:center; justify-content:center; padding:24px;
     }
+    #preview-modal.open { display:flex; }
+    .modal-inner {
+      background:var(--page-bg); border-radius:20px; padding:28px;
+      max-width:780px; width:100%; max-height:90vh; overflow-y:auto;
+      box-shadow:0 32px 80px rgba(0,0,0,.45); position:relative;
+    }
+    .modal-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+    .modal-topbar h3 { font-family:'Barlow',sans-serif; font-size:17px; font-weight:700; color:var(--navy-dark); }
+    .modal-actions { display:flex; gap:10px; }
+    .btn-close-modal {
+      padding:8px 18px; background:#fff; color:var(--text-mid);
+      border:1.5px solid var(--border); border-radius:8px;
+      font-size:13px; font-weight:600; cursor:pointer; transition:background .15s;
+    }
+    .btn-close-modal:hover { background:#f0f2ff; }
+    .btn-dl-pdf {
+      padding:8px 18px;
+      background:linear-gradient(135deg,var(--navy-dark),var(--navy-light));
+      color:#fff; border:none; border-radius:8px;
+      font-family:'Barlow',sans-serif; font-size:14px; font-weight:700;
+      cursor:pointer; display:flex; align-items:center; gap:6px; transition:opacity .2s;
+    }
+    .btn-dl-pdf:hover { opacity:.9; }
+    .btn-dl-pdf:disabled { opacity:.5; cursor:not-allowed; }
 
-    label {
-      display: block;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-mid);
-      margin-bottom: 4px;
-      margin-top: 12px;
-    }
-
-    input, select {
-      width: 100%;
-      padding: 9px 12px;
-      border: 1.5px solid var(--border);
-      border-radius: 8px;
-      font-family: 'Inter', sans-serif;
-      font-size: 13.5px;
-      color: var(--text-dark);
-      background: #fafbff;
-      transition: border-color .2s;
-      outline: none;
-    }
-    input:focus, select:focus {
-      border-color: var(--navy-light);
-      background: var(--white);
-    }
-
-    .btn-print {
-      margin-top: 28px;
-      width: 100%;
-      padding: 13px;
-      background: linear-gradient(135deg, var(--navy-dark), var(--navy-light));
-      color: white;
-      font-family: 'Barlow', sans-serif;
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: .04em;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      box-shadow: 0 4px 16px rgba(26,42,108,.30);
-      transition: transform .15s, box-shadow .15s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-    }
-    .btn-print:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(26,42,108,.35); }
-    .btn-print:active { transform: none; }
-
-    /* ── PREVIEW COLUMN ──────────────────────────────── */
-    .preview-col {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .preview-label-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-    }
-    .preview-label-bar span {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-      color: var(--label-color);
-    }
-
-    /* ── RECEIPT ─────────────────────────────────────── */
-    .receipt-wrapper {
-      background: white;
-      border-radius: 18px;
-      overflow: hidden;
-      box-shadow: 0 8px 40px rgba(26,42,108,.14);
-      max-width: 720px;
-    }
-
-    /* Header */
+    /* RECEIPT */
+    .receipt-wrapper { background:#fff; border-radius:18px; overflow:hidden; box-shadow:0 8px 40px rgba(26,42,108,.14); }
     .receipt-header {
-      background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy-mid) 50%, var(--navy-light) 100%);
-      padding: 36px 40px 32px;
-      position: relative;
-      overflow: hidden;
+      background:linear-gradient(135deg,var(--navy-dark) 0%,var(--navy-mid) 50%,var(--navy-light) 100%);
+      padding:36px 40px 32px; position:relative; overflow:hidden;
     }
-
     .receipt-header::before {
-      content: '';
-      position: absolute;
-      right: -40px; top: -60px;
-      width: 260px; height: 260px;
-      border-radius: 50%;
-      background: rgba(255,255,255,.06);
+      content:''; position:absolute; right:-40px; top:-60px;
+      width:260px; height:260px; border-radius:50%; background:rgba(255,255,255,.06);
     }
     .receipt-header::after {
-      content: '';
-      position: absolute;
-      right: 60px; top: 20px;
-      width: 160px; height: 160px;
-      border-radius: 50%;
-      background: rgba(255,255,255,.04);
+      content:''; position:absolute; right:60px; top:20px;
+      width:160px; height:160px; border-radius:50%; background:rgba(255,255,255,.04);
     }
-
     .badge-official {
-      display: inline-block;
-      background: rgba(255,255,255,.15);
-      border: 1px solid rgba(255,255,255,.3);
-      color: rgba(255,255,255,.9);
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      padding: 4px 12px;
-      border-radius: 20px;
-      margin-bottom: 14px;
+      display:inline-block; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3);
+      color:rgba(255,255,255,.9); font-size:10px; font-weight:700; letter-spacing:.12em;
+      text-transform:uppercase; padding:4px 12px; border-radius:20px; margin-bottom:14px;
     }
+    .receipt-title { font-family:'Barlow',sans-serif; font-size:30px; font-weight:900; color:#fff; letter-spacing:.01em; line-height:1.1; }
+    .receipt-subtitle { font-size:13px; color:rgba(255,255,255,.65); margin-top:4px; }
+    .shuttlecock-icon { position:absolute; right:44px; top:28px; opacity:.85; }
+    .receipt-meta { display:flex; gap:60px; margin-top:28px; padding-top:22px; border-top:1px solid rgba(255,255,255,.15); }
+    .meta-group label { display:block; font-size:10px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.5); margin-bottom:4px; }
+    .meta-group span { font-family:'Barlow',sans-serif; font-size:16px; font-weight:700; color:#fff; }
+    .receipt-body { padding:0 32px; }
+    .info-card { background:#fff; border:1.5px solid var(--border); border-radius:12px; margin:24px 0; overflow:hidden; }
+    .info-card-title { display:flex; align-items:center; gap:10px; padding:14px 20px; border-bottom:1.5px solid var(--border); }
+    .info-card-title .dot { width:22px; height:22px; background:var(--navy-dark); border-radius:6px; flex-shrink:0; }
+    .info-card-title span { font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--navy-dark); }
+    .info-row { display:flex; align-items:baseline; padding:11px 20px; border-bottom:1px solid var(--border); gap:16px; }
+    .info-row:last-child { border-bottom:none; }
+    .info-row .key { flex:0 0 110px; font-size:12.5px; color:var(--label); }
+    .info-row .val { font-size:13.5px; font-weight:600; color:var(--text); }
+    .info-row .val a { color:#4b6bdb; text-decoration:none; }
+    .txn-card { background:linear-gradient(145deg,var(--navy-dark),#1f3498); border-radius:14px; margin:0 0 28px; overflow:hidden; }
+    .txn-title { padding:18px 24px 14px; font-family:'Barlow',sans-serif; font-size:13px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:rgba(255,255,255,.65); border-bottom:1px solid rgba(255,255,255,.1); }
+    .txn-row { display:flex; justify-content:space-between; padding:11px 24px; font-size:13px; border-bottom:1px solid rgba(255,255,255,.07); }
+    .txn-row:last-child { border-bottom:none; }
+    .txn-row .tk { color:rgba(255,255,255,.55); }
+    .txn-row .tv { color:rgba(255,255,255,.9); font-weight:600; }
+    .txn-total { display:flex; justify-content:space-between; align-items:center; padding:18px 24px; background:rgba(0,0,0,.2); border-top:1px solid rgba(255,255,255,.12); }
+    .txn-total .tt-label { font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.6); }
+    .txn-total .tt-amount { font-family:'Barlow',sans-serif; font-size:32px; font-weight:900; color:#fff; }
+    .receipt-footer { background:#f8f9fd; border-top:1.5px solid var(--border); text-align:center; padding:20px 32px; }
+    .receipt-footer strong { display:block; font-size:13px; color:var(--text); margin-bottom:3px; }
+    .receipt-footer span { font-size:12px; color:var(--label); }
 
-    .receipt-title {
-      font-family: 'Barlow', sans-serif;
-      font-size: 30px;
-      font-weight: 900;
-      color: white;
-      letter-spacing: .01em;
-      line-height: 1.1;
-    }
-
-    .receipt-subtitle {
-      font-size: 13px;
-      color: rgba(255,255,255,.65);
-      margin-top: 4px;
-    }
-
-    /* Shuttlecock SVG icon */
-    .shuttlecock-icon {
-      position: absolute;
-      right: 44px;
-      top: 28px;
-      opacity: .85;
-    }
-
-    .receipt-meta {
-      display: flex;
-      gap: 60px;
-      margin-top: 28px;
-      padding-top: 22px;
-      border-top: 1px solid rgba(255,255,255,.15);
-    }
-
-    .receipt-meta .meta-group label {
-      display: block;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-      color: rgba(255,255,255,.5);
-      margin-bottom: 4px;
-    }
-    .receipt-meta .meta-group span {
-      font-family: 'Barlow', sans-serif;
-      font-size: 16px;
-      font-weight: 700;
-      color: white;
-    }
-
-    /* Body sections */
-    .receipt-body { padding: 0 32px; }
-
-    .info-card {
-      background: var(--white);
-      border: 1.5px solid var(--border);
-      border-radius: 12px;
-      margin: 24px 0;
-      overflow: hidden;
-    }
-
-    .info-card-title {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 14px 20px;
-      border-bottom: 1.5px solid var(--border);
-    }
-    .info-card-title .dot {
-      width: 22px; height: 22px;
-      background: var(--navy-dark);
-      border-radius: 6px;
-      flex-shrink: 0;
-    }
-    .info-card-title span {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      color: var(--navy-dark);
-    }
-
-    .info-row {
-      display: flex;
-      align-items: baseline;
-      padding: 11px 20px;
-      border-bottom: 1px solid var(--border);
-      gap: 16px;
-    }
-    .info-row:last-child { border-bottom: none; }
-    .info-row .key {
-      flex: 0 0 110px;
-      font-size: 12.5px;
-      color: var(--label-color);
-    }
-    .info-row .val {
-      font-size: 13.5px;
-      font-weight: 600;
-      color: var(--text-dark);
-    }
-    .info-row .val a {
-      color: #4b6bdb;
-      text-decoration: none;
-    }
-
-    /* Transaction summary */
-    .txn-card {
-      background: linear-gradient(145deg, var(--navy-dark), #1f3498);
-      border-radius: 14px;
-      margin: 0 0 28px;
-      overflow: hidden;
-    }
-
-    .txn-title {
-      padding: 18px 24px 14px;
-      font-family: 'Barlow', sans-serif;
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      color: rgba(255,255,255,.65);
-      border-bottom: 1px solid rgba(255,255,255,.1);
-    }
-
-    .txn-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 11px 24px;
-      font-size: 13px;
-      border-bottom: 1px solid rgba(255,255,255,.07);
-    }
-    .txn-row:last-child { border-bottom: none; }
-    .txn-row .tk { color: rgba(255,255,255,.55); }
-    .txn-row .tv { color: rgba(255,255,255,.9); font-weight: 600; }
-
-    .txn-total {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 18px 24px;
-      background: rgba(0,0,0,.2);
-      border-top: 1px solid rgba(255,255,255,.12);
-    }
-    .txn-total .tt-label {
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-      color: rgba(255,255,255,.6);
-    }
-    .txn-total .tt-amount {
-      font-family: 'Barlow', sans-serif;
-      font-size: 32px;
-      font-weight: 900;
-      color: white;
-    }
-
-    /* Footer */
-    .receipt-footer {
-      background: #f8f9fd;
-      border-top: 1.5px solid var(--border);
-      text-align: center;
-      padding: 20px 32px;
-    }
-    .receipt-footer strong {
-      display: block;
-      font-size: 13px;
-      color: var(--text-dark);
-      margin-bottom: 3px;
-    }
-    .receipt-footer span {
-      font-size: 12px;
-      color: var(--label-color);
-    }
-
-    /* ── LOCK SCREEN ─────────────────────────────────── */
-    #lock-screen {
-      position: fixed;
-      inset: 0;
-      z-index: 9999;
-      background: linear-gradient(145deg, #111827, #1a2a6c);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-    }
-
-    .lock-card {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 20px;
-      padding: 48px 44px 40px;
-      width: 100%;
-      max-width: 380px;
-      text-align: center;
-      backdrop-filter: blur(12px);
-      box-shadow: 0 24px 80px rgba(0,0,0,0.5);
-    }
-
-    .lock-icon {
-      width: 56px; height: 56px;
-      background: rgba(255,255,255,0.08);
-      border-radius: 16px;
-      display: flex; align-items: center; justify-content: center;
-      margin: 0 auto 20px;
-    }
-
-    .lock-card h1 {
-      font-family: 'Barlow', sans-serif;
-      font-size: 22px;
-      font-weight: 800;
-      color: white;
-      margin-bottom: 6px;
-    }
-
-    .lock-card p {
-      font-size: 13px;
-      color: rgba(255,255,255,0.45);
-      margin-bottom: 28px;
-    }
-
-    .lock-input {
-      width: 100%;
-      padding: 12px 16px;
-      background: rgba(255,255,255,0.08);
-      border: 1.5px solid rgba(255,255,255,0.15);
-      border-radius: 10px;
-      font-family: 'Inter', sans-serif;
-      font-size: 15px;
-      color: white;
-      outline: none;
-      text-align: center;
-      letter-spacing: 0.15em;
-      transition: border-color .2s;
-    }
-    .lock-input::placeholder { color: rgba(255,255,255,0.25); letter-spacing: 0; }
-    .lock-input:focus { border-color: rgba(255,255,255,0.45); }
-
-    .lock-btn {
-      margin-top: 14px;
-      width: 100%;
-      padding: 13px;
-      background: linear-gradient(135deg, #2d3db0, #4b5fe0);
-      color: white;
-      font-family: 'Barlow', sans-serif;
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: .05em;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: opacity .2s, transform .15s;
-      box-shadow: 0 4px 20px rgba(45,61,176,0.5);
-    }
-    .lock-btn:hover { opacity: .9; transform: translateY(-1px); }
-    .lock-btn:active { transform: none; }
-
-    .lock-error {
-      margin-top: 12px;
-      font-size: 12.5px;
-      color: #f87171;
-      min-height: 18px;
-      transition: opacity .2s;
-    }
-
-    .lock-footer {
-      margin-top: 24px;
-      font-size: 11px;
-      color: rgba(255,255,255,0.2);
-    }
-
-    /* ── PRINT STYLES ────────────────────────────────── */
-    @media print {
-      @page { size: A4; margin: 0; }
-
-      body {
-        background: white;
-        padding: 0;
-      }
-
-      .editor-shell {
-        display: block;
-        padding: 0;
-        max-width: 100%;
-      }
-
-      .form-panel,
-      .preview-label-bar { display: none !important; }
-
-      .preview-col { width: 100%; }
-
-      .receipt-wrapper {
-        border-radius: 0;
-        box-shadow: none;
-        max-width: 100%;
-        width: 100%;
-      }
-
-      .receipt-body { padding: 0 40px; }
-    }
+    /* hint col */
+    .preview-hint { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:340px; color:var(--label); text-align:center; gap:16px; }
+    .preview-hint svg { opacity:.25; }
+    .preview-hint p { font-size:14px; line-height:1.65; max-width:260px; }
+    .preview-hint strong { color:var(--navy-dark); }
   </style>
 </head>
 <body>
 
-<!-- ── LOCK SCREEN ── -->
+<!-- LOCK SCREEN -->
 <div id="lock-screen">
   <div class="lock-card">
     <div class="lock-icon">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
       </svg>
     </div>
     <h1>Milton Badminton Club</h1>
     <p>Enter your password to access the receipt generator</p>
-    <input
-      class="lock-input"
-      id="lock-input"
-      type="password"
-      placeholder="Enter password"
-      autocomplete="current-password"
-    />
+    <input class="lock-input" id="lock-input" type="password" placeholder="Enter password" autocomplete="current-password"/>
     <button class="lock-btn" onclick="checkPassword()">Unlock</button>
     <div class="lock-error" id="lock-error"></div>
     <div class="lock-footer">Secured access · Milton Badminton Club</div>
   </div>
 </div>
 
-<script>
-  /* ── Password config ──────────────────────────────────
-     Change the value below to set your own password.
-     For stronger security when hosting, consider hashing
-     (see comment below).
-  ─────────────────────────────────────────────────────── */
-  const CORRECT_PASSWORD = 'mbc@2026$r€(€e!pt';
+<!-- PREVIEW MODAL -->
+<div id="preview-modal">
+  <div class="modal-inner">
+    <div class="modal-topbar">
+      <h3>&#128196; Receipt Preview</h3>
+      <div class="modal-actions">
+        <button class="btn-close-modal" onclick="closePreview()">&#10005; Close</button>
+        <button class="btn-dl-pdf" id="btn-dl-modal" onclick="downloadPDF()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Download PDF
+        </button>
+      </div>
+    </div>
+    <div id="modal-receipt-slot"></div>
+  </div>
+</div>
 
-  const SESSION_KEY = 'mbc_receipt_auth';
-
-  function checkPassword() {
-    const input = document.getElementById('lock-input').value;
-    const errEl = document.getElementById('lock-error');
-    if (input === CORRECT_PASSWORD) {
-      sessionStorage.setItem(SESSION_KEY, '1');
-      const ls = document.getElementById('lock-screen');
-      ls.style.transition = 'opacity .4s';
-      ls.style.opacity = '0';
-      setTimeout(() => ls.remove(), 400);
-    } else {
-      errEl.textContent = 'Incorrect password. Please try again.';
-      document.getElementById('lock-input').value = '';
-      document.getElementById('lock-input').focus();
-      setTimeout(() => errEl.textContent = '', 3000);
-    }
-  }
-
-  // Allow pressing Enter to submit
-  document.addEventListener('DOMContentLoaded', () => {
-    // Skip lock if already authenticated this session
-    if (sessionStorage.getItem(SESSION_KEY) === '1') {
-      document.getElementById('lock-screen').remove();
-    }
-    document.getElementById('lock-input').addEventListener('keydown', e => {
-      if (e.key === 'Enter') checkPassword();
-    });
-  });
-</script>
-
+<!-- EDITOR -->
 <div class="editor-shell">
-
-  <!-- ── FORM PANEL ── -->
   <aside class="form-panel">
     <h2>
-      <span class="icon">
-        <svg width="16" height="16" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6z"/></svg>
-      </span>
+      <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6z"/></svg></span>
       Receipt Generator
     </h2>
 
     <!-- Receipt Info -->
-    <div class="section-label">Receipt Info</div>
-
-    <label>Receipt Number</label>
-    <input id="f-receipt-no" value="MBC-20251205-154354" />
-
-    <label>Issue Date</label>
-    <input id="f-issue-date" type="date" value="2025-12-05" />
-
-    <!-- Club Details -->
-    <div class="section-label">Club Details</div>
-
-    <label>Organization</label>
-    <input id="f-org" value="Milton Badminton Club" />
-
-    <label>Email</label>
-    <input id="f-email" value="admin@miltonbadmintonclub.com" />
-
-    <label>Website</label>
-    <input id="f-website" value="https://miltonbadmintonclub.com" />
-
-    <label>Address</label>
-    <input id="f-address" value="2015 Pan Am Blvd, Milton, ON L9E 0K7" />
-
-    <label>Schedule</label>
-    <input id="f-schedule" value="Tue & Thu, 8:30-10:30 PM" />
-
-    <!-- Member Details -->
-    <div class="section-label">Member Details</div>
-
-    <label>Member Name</label>
-    <input id="f-name" value="Hareesh Tummala" />
-
-    <label>Member Email</label>
-    <input id="f-member-email" value="tummala.ahri@gmail.com" />
-
-    <!-- Transaction -->
-    <div class="section-label">Transaction</div>
-
-    <label>Payment Period (from)</label>
-    <input id="f-period-from" type="date" value="2025-04-01" />
-
-    <label>Payment Period (to)</label>
-    <input id="f-period-to" type="date" value="2025-08-31" />
-
-    <label>Payment Method</label>
-    <select id="f-method">
-      <option>E-Transfer (Interac)</option>
-      <option>Cash</option>
-      <option>Credit Card</option>
-      <option>Cheque</option>
-      <option>Online Payment</option>
-    </select>
-
-    <label>Transaction Date</label>
-    <input id="f-txn-date" type="date" value="2025-03-19" />
-
-    <label>Total Amount (CAD)</label>
-    <input id="f-amount" type="number" value="197.00" step="0.01" />
-
-    <button class="btn-print" onclick="window.print()">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-        <rect x="6" y="14" width="12" height="8"/>
-      </svg>
-      Download / Print PDF
-    </button>
-  </aside>
-
-  <!-- ── PREVIEW ── -->
-  <div class="preview-col">
-    <div class="preview-label-bar">
-      <span>Live Preview</span>
-      <span id="update-hint" style="color:#aab;font-size:11px;">Edit fields to update →</span>
+    <div class="sec-head"><span class="sec-label">Receipt Info</span></div>
+    <div class="field-wrap">
+      <label>Issue Date</label>
+      <input type="date" id="f-issue-date"/>
+    </div>
+    <div class="field-wrap">
+      <label>Receipt Number <span style="font-weight:400;color:var(--label)">(auto · editable)</span></label>
+      <div class="receipt-no-wrap">
+        <input type="text" id="f-receipt-no" placeholder="MBC-YYYYMMDD-###"/>
+        <button class="btn-regen" onclick="regenReceiptNo()" title="Regenerate">&#8635;</button>
+      </div>
     </div>
 
-    <div class="receipt-wrapper" id="receipt">
+    <!-- Club Details — locked -->
+    <div class="sec-head">
+      <span class="sec-label">Club Details</span>
+      <span class="locked-badge">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Locked
+      </span>
+    </div>
+    <div class="locked-field"><span class="lf-key">Organization</span><span class="lf-val">Milton Badminton Club</span></div>
+    <div class="locked-field"><span class="lf-key">Email</span><span class="lf-val">admin@miltonbadmintonclub.com</span></div>
+    <div class="locked-field"><span class="lf-key">Website</span><span class="lf-val">miltonbadmintonclub.com</span></div>
+    <div class="locked-field"><span class="lf-key">Address</span><span class="lf-val">2015 Pan Am Blvd, Milton, ON L9E 0K7</span></div>
+    <div class="locked-field"><span class="lf-key">Schedule</span><span class="lf-val">Tue &amp; Thu, 8:30&#8211;10:30 PM</span></div>
 
-      <!-- Header -->
-      <div class="receipt-header">
+    <!-- Member Details -->
+    <div class="sec-head"><span class="sec-label">Member Details</span></div>
+    <div class="field-wrap">
+      <label>Full Name</label>
+      <input type="text" id="f-name" placeholder="e.g. Jane Smith"/>
+    </div>
+    <div class="field-wrap">
+      <label>Email</label>
+      <input type="email" id="f-member-email" placeholder="e.g. jane@email.com"/>
+    </div>
 
-        <!-- Shuttlecock icon -->
-        <svg class="shuttlecock-icon" width="80" height="90" viewBox="0 0 80 90" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <!-- Cork base -->
-          <ellipse cx="40" cy="78" rx="12" ry="8" fill="rgba(255,255,255,0.18)"/>
-          <ellipse cx="40" cy="75" rx="10" ry="6" fill="rgba(255,255,255,0.28)"/>
-          <!-- Feathers -->
-          <line x1="40" y1="70" x2="18" y2="10" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
-          <line x1="40" y1="70" x2="27" y2="8" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
-          <line x1="40" y1="70" x2="37" y2="7" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
-          <line x1="40" y1="70" x2="47" y2="7" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
-          <line x1="40" y1="70" x2="56" y2="8" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
-          <line x1="40" y1="70" x2="64" y2="12" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
-          <!-- Feather tips arc -->
-          <path d="M18,10 Q28,4 37,7 Q43,5 47,7 Q56,5 64,12" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" fill="none"/>
-          <!-- Red accent feather tips -->
-          <path d="M18,10 Q28,4 37,7 Q43,5 47,7 Q56,5 64,12" stroke="#e05050" stroke-width="1" fill="none" stroke-dasharray="3 6" stroke-dashoffset="2"/>
+    <!-- Transaction -->
+    <div class="sec-head"><span class="sec-label">Transaction</span></div>
+    <div class="field-wrap">
+      <label>Payment Period &#8212; From</label>
+      <input type="date" id="f-period-from"/>
+    </div>
+    <div class="field-wrap">
+      <label>Payment Period &#8212; To</label>
+      <input type="date" id="f-period-to"/>
+    </div>
+    <div class="field-wrap">
+      <label>Payment Method</label>
+      <select id="f-method">
+        <option>E-Transfer (Interac)</option>
+        <option>Cash</option>
+        <option>Credit Card</option>
+        <option>Cheque</option>
+        <option>Online Payment</option>
+      </select>
+    </div>
+    <div class="field-wrap">
+      <label>Transaction Date</label>
+      <input type="date" id="f-txn-date"/>
+    </div>
+    <div class="field-wrap">
+      <label>Total Amount (CAD $)</label>
+      <input type="number" id="f-amount" value="197.00" step="0.01" min="0"/>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-preview" onclick="openPreview()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
         </svg>
+        Preview
+      </button>
+      <button class="btn-pdf" onclick="openPreview(true)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Download PDF
+      </button>
+    </div>
+  </aside>
 
-        <div class="badge-official">Official Receipt</div>
-        <div class="receipt-title" id="r-org">MILTON BADMINTON CLUB</div>
-        <div class="receipt-subtitle">Non-Profit Sports Organization</div>
-
-        <div class="receipt-meta">
-          <div class="meta-group">
-            <label>Receipt No.</label>
-            <span id="r-receipt-no">MBC-20251205-154354</span>
-          </div>
-          <div class="meta-group">
-            <label>Issue Date</label>
-            <span id="r-issue-date">Dec 5, 2025</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Body -->
-      <div class="receipt-body">
-
-        <!-- Club Details -->
-        <div class="info-card">
-          <div class="info-card-title">
-            <div class="dot"></div>
-            <span>Club Details</span>
-          </div>
-          <div class="info-row"><span class="key">Organization:</span><span class="val" id="r-org2">Milton Badminton Club</span></div>
-          <div class="info-row"><span class="key">Email:</span><span class="val" id="r-email"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="afcecbc2c6c1efc2c6c3dbc0c1cdcecbc2c6c1dbc0c1ccc3dacd81ccc0c2">[email&#160;protected]</a></span></div>
-          <div class="info-row"><span class="key">Website:</span><span class="val"><a id="r-website" href="#">https://miltonbadmintonclub.com</a></span></div>
-          <div class="info-row"><span class="key">Address:</span><span class="val" id="r-address">2015 Pan Am Blvd, Milton, ON L9E 0K7</span></div>
-          <div class="info-row"><span class="key">Schedule:</span><span class="val" id="r-schedule">Tue & Thu, 8:30-10:30 PM</span></div>
-        </div>
-
-        <!-- Member Details -->
-        <div class="info-card">
-          <div class="info-card-title">
-            <div class="dot"></div>
-            <span>Member Details</span>
-          </div>
-          <div class="info-row"><span class="key">Name:</span><span class="val" id="r-name">Hareesh Tummala</span></div>
-          <div class="info-row"><span class="key">Email:</span><span class="val" id="r-member-email"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3246475f5f535e531c535a405b72555f535b5e1c515d5f">[email&#160;protected]</a></span></div>
-        </div>
-
-        <!-- Transaction Summary -->
-        <div class="txn-card">
-          <div class="txn-title">Transaction Summary</div>
-          <div class="txn-row"><span class="tk">Payment Period:</span><span class="tv" id="r-period">Apr 1, 2025 – Aug 31, 2025</span></div>
-          <div class="txn-row"><span class="tk">Payment Method:</span><span class="tv" id="r-method">E-Transfer (Interac)</span></div>
-          <div class="txn-row"><span class="tk">Transaction Date:</span><span class="tv" id="r-txn-date">Mar 19, 2025</span></div>
-          <div class="txn-total">
-            <span class="tt-label">Total Amount Paid</span>
-            <span class="tt-amount" id="r-amount">$197.00 CAD</span>
-          </div>
-        </div>
-
-      </div><!-- /receipt-body -->
-
-      <!-- Footer -->
-      <div class="receipt-footer">
-        <strong>Thank you for your membership!</strong>
-        <span>For questions or support, contact us at <span id="r-footer-email"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="badbded7d3d4fad7d3d6ced5d4d8dbded7d3d4ced5d4d9d6cfd894d9d5d7">[email&#160;protected]</a></span></span>
-      </div>
-
-    </div><!-- /receipt-wrapper -->
+  <div class="preview-hint">
+    <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="#1a2a6c" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="16" y1="13" x2="8" y2="13"/>
+      <line x1="16" y1="17" x2="8" y2="17"/>
+      <polyline points="10 9 9 9 8 9"/>
+    </svg>
+    <p>Fill in the details on the left, then click <strong>Preview</strong> to review&#8202;—&#8202;or <strong>Download PDF</strong> to export directly.</p>
   </div>
+</div>
 
-</div><!-- /editor-shell -->
+<!-- HIDDEN RECEIPT TEMPLATE -->
+<div id="receipt-tpl" style="position:absolute;left:-9999px;top:0;visibility:hidden;width:720px;">
+  <div class="receipt-wrapper">
+    <div class="receipt-header">
+      <svg class="shuttlecock-icon" width="80" height="90" viewBox="0 0 80 90" fill="none">
+        <ellipse cx="40" cy="78" rx="12" ry="8" fill="rgba(255,255,255,0.18)"/>
+        <ellipse cx="40" cy="75" rx="10" ry="6" fill="rgba(255,255,255,0.28)"/>
+        <line x1="40" y1="70" x2="18" y2="10" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+        <line x1="40" y1="70" x2="27" y2="8" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+        <line x1="40" y1="70" x2="37" y2="7" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+        <line x1="40" y1="70" x2="47" y2="7" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+        <line x1="40" y1="70" x2="56" y2="8" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+        <line x1="40" y1="70" x2="64" y2="12" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+        <path d="M18,10 Q28,4 37,7 Q43,5 47,7 Q56,5 64,12" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" fill="none"/>
+        <path d="M18,10 Q28,4 37,7 Q43,5 47,7 Q56,5 64,12" stroke="#e05050" stroke-width="1" fill="none" stroke-dasharray="3 6" stroke-dashoffset="2"/>
+      </svg>
+      <div class="badge-official">Official Receipt</div>
+      <div class="receipt-title">MILTON BADMINTON CLUB</div>
+      <div class="receipt-subtitle">Non-Profit Sports Organization</div>
+      <div class="receipt-meta">
+        <div class="meta-group"><label>Receipt No.</label><span id="t-receipt-no">&#8212;</span></div>
+        <div class="meta-group"><label>Issue Date</label><span id="t-issue-date">&#8212;</span></div>
+      </div>
+    </div>
+    <div class="receipt-body">
+      <div class="info-card">
+        <div class="info-card-title"><div class="dot"></div><span>Club Details</span></div>
+        <div class="info-row"><span class="key">Organization:</span><span class="val">Milton Badminton Club</span></div>
+        <div class="info-row"><span class="key">Email:</span><span class="val">admin@miltonbadmintonclub.com</span></div>
+        <div class="info-row"><span class="key">Website:</span><span class="val"><a href="https://miltonbadmintonclub.com">https://miltonbadmintonclub.com</a></span></div>
+        <div class="info-row"><span class="key">Address:</span><span class="val">2015 Pan Am Blvd, Milton, ON L9E 0K7</span></div>
+        <div class="info-row"><span class="key">Schedule:</span><span class="val">Tue &amp; Thu, 8:30&#8211;10:30 PM</span></div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-title"><div class="dot"></div><span>Member Details</span></div>
+        <div class="info-row"><span class="key">Name:</span><span class="val" id="t-name">&#8212;</span></div>
+        <div class="info-row"><span class="key">Email:</span><span class="val" id="t-member-email">&#8212;</span></div>
+      </div>
+      <div class="txn-card">
+        <div class="txn-title">Transaction Summary</div>
+        <div class="txn-row"><span class="tk">Payment Period:</span><span class="tv" id="t-period">&#8212;</span></div>
+        <div class="txn-row"><span class="tk">Payment Method:</span><span class="tv" id="t-method">&#8212;</span></div>
+        <div class="txn-row"><span class="tk">Transaction Date:</span><span class="tv" id="t-txn-date">&#8212;</span></div>
+        <div class="txn-total">
+          <span class="tt-label">Total Amount Paid</span>
+          <span class="tt-amount" id="t-amount">&#8212;</span>
+        </div>
+      </div>
+    </div>
+    <div class="receipt-footer">
+      <strong>Thank you for your membership!</strong>
+      <span>For questions or support, contact us at admin@miltonbadmintonclub.com</span>
+    </div>
+  </div>
+</div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
-  /* ── Helpers ── */
-  const $ = id => document.getElementById(id);
-  const fmtDate = str => {
-    if (!str) return '';
-    const d = new Date(str + 'T12:00:00');
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-  const fmtDateShort = str => {
-    if (!str) return '';
-    const d = new Date(str + 'T12:00:00');
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
+<script>
+const CORRECT_PASSWORD = 'mbc@2026$r\u20AC(\u20ACe!pt';
+const SESSION_KEY = 'mbc_receipt_auth';
 
-  /* ── Live binding ── */
-  const bindings = [
-    ['f-receipt-no',    () => { $('r-receipt-no').textContent = $('f-receipt-no').value; }],
-    ['f-issue-date',    () => { $('r-issue-date').textContent = fmtDate($('f-issue-date').value); }],
-    ['f-org',           () => {
-      $('r-org').textContent  = $('f-org').value.toUpperCase();
-      $('r-org2').textContent = $('f-org').value;
-      $('r-footer-email').parentElement.innerHTML = `For questions or support, contact us at <span id="r-footer-email">${$('f-email').value}</span>`;
-    }],
-    ['f-email',         () => {
-      $('r-email').textContent = $('f-email').value;
-      $('r-footer-email').textContent = $('f-email').value;
-    }],
-    ['f-website',       () => {
-      $('r-website').textContent = $('f-website').value;
-      $('r-website').href = $('f-website').value;
-    }],
-    ['f-address',       () => { $('r-address').textContent = $('f-address').value; }],
-    ['f-schedule',      () => { $('r-schedule').textContent = $('f-schedule').value; }],
-    ['f-name',          () => { $('r-name').textContent = $('f-name').value; }],
-    ['f-member-email',  () => { $('r-member-email').textContent = $('f-member-email').value; }],
-    ['f-period-from',   updatePeriod],
-    ['f-period-to',     updatePeriod],
-    ['f-method',        () => { $('r-method').textContent = $('f-method').value; }],
-    ['f-txn-date',      () => { $('r-txn-date').textContent = fmtDateShort($('f-txn-date').v
+function checkPassword() {
+  const val = document.getElementById('lock-input').value;
+  const err = document.getElementById('lock-error');
+  if (val === CORRECT_PASSWORD) {
+    sessionStorage.setItem(SESSION_KEY, '1');
+    const ls = document.getElementById('lock-screen');
+    ls.style.transition = 'opacity .4s';
+    ls.style.opacity = '0';
+    setTimeout(() => ls.remove(), 420);
+  } else {
+    err.textContent = 'Incorrect password. Please try again.';
+    document.getElementById('lock-input').value = '';
+    document.getElementById('lock-input').focus();
+    setTimeout(() => err.textContent = '', 3000);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (sessionStorage.getItem(SESSION_KEY) === '1') {
+    document.getElementById('lock-screen').remove();
+  }
+  document.getElementById('lock-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') checkPassword();
+  });
+  const today = new Date().toISOString().slice(0, 10);
+  document.getElementById('f-issue-date').value = today;
+  generateReceiptNo(today);
+  document.getElementById('f-issue-date').addEventListener('change', function () {
+    generateReceiptNo(this.value);
+  });
+  document.getElementById('preview-modal').addEventListener('click', function (e) {
+    if (e.target === this) closePreview();
+  });
+});
+
+function generateReceiptNo(dateStr) {
+  if (!dateStr) return;
+  const compact = dateStr.replace(/-/g, '');
+  const rand = String(Math.floor(Math.random() * 900) + 100);
+  document.getElementById('f-receipt-no').value = 'MBC-' + compact + '-' + rand;
+}
+function regenReceiptNo() {
+  generateReceiptNo(document.getElementById('f-issue-date').value);
+}
+
+function fmtDate(str) {
+  if (!str) return '\u2014';
+  return new Date(str + 'T12:00:00').toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric'
+  });
+}
+
+function populateTemplate() {
+  const g = id => document.getElementById(id);
+  g('t-receipt-no').textContent   = g('f-receipt-no').value || '\u2014';
+  g('t-issue-date').textContent   = fmtDate(g('f-issue-date').value);
+  g('t-name').textContent         = g('f-name').value || '\u2014';
+  g('t-member-email').textContent = g('f-member-email').value || '\u2014';
+  const pf = g('f-period-from').value, pt = g('f-period-to').value;
+  g('t-period').textContent   = (pf && pt) ? fmtDate(pf) + ' \u2013 ' + fmtDate(pt) : '\u2014';
+  g('t-method').textContent   = g('f-method').value;
+  g('t-txn-date').textContent = fmtDate(g('f-txn-date').value);
+  const amt = parseFloat(g('f-amount').value) || 0;
+  g('t-amount').textContent = '$' + amt.toFixed(2) + ' CAD';
+}
+
+function openPreview(andDownload) {
+  populateTemplate();
+  const tpl  = document.getElementById('receipt-tpl');
+  const slot = document.getElementById('modal-receipt-slot');
+  slot.innerHTML = '';
+  const clone = tpl.cloneNode(true);
+  clone.style.cssText = 'position:static;visibility:visible;width:100%;';
+  clone.id = '';
+  slot.appendChild(clone);
+  document.getElementById('preview-modal').classList.add('open');
+  if (andDownload) setTimeout(downloadPDF, 380);
+}
+
+function closePreview() {
+  document.getElementById('preview-modal').classList.remove('open');
+}
+
+async function downloadPDF() {
+  const btn = document.getElementById('btn-dl-modal');
+  btn.disabled = true;
+  const orig = btn.innerHTML;
+  btn.textContent = 'Generating\u2026';
+  try {
+    const el = document.querySelector('#modal-receipt-slot .receipt-wrapper');
+    if (!el) { alert('Please open Preview first.'); return; }
+    const canvas = await html2canvas(el, { scale: 2.5, useCORS: true, backgroundColor: '#ffffff', logging: false });
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    const margin = 10, pageW = 210;
+    const usableW = pageW - margin * 2;
+    const scaledH = (canvas.height / canvas.width) * usableW;
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    pdf.addImage(imgData, 'PNG', margin, margin, usableW, scaledH);
+    const receiptNo = document.getElementById('f-receipt-no').value || 'MBC-receipt';
+    pdf.save(receiptNo + '.pdf');
+  } catch(err) {
+    console.error(err);
+    alert('PDF generation failed. See console for details.');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+}
+</script>
+</body>
+</html>
