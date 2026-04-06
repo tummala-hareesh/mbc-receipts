@@ -1,19 +1,19 @@
 /**
- * MBC Receipt — OTP Auth Worker
+ * MBC Receipt — OTP Auth Worker (Email via Resend)
  *
  * Routes:
- *   POST /send-otp    { email }              → generates + emails 6-digit OTP
- *   POST /verify-otp  { email, otp }         → validates OTP, returns session token
- *   POST /verify-session { token }           → checks if a session token is still valid
+ *   POST /send-otp       { email }            → generates + emails 6-digit OTP
+ *   POST /verify-otp     { email, otp }       → validates OTP, returns session token
+ *   POST /verify-session { token }            → checks if a session token is still valid
  *
  * KV bindings (set in wrangler.toml):
  *   MBC_KV  — stores  otp:{email}       (TTL 600 s)
  *                      session:{token}   (TTL 28800 s = 8 h)
  *
- * Environment variables / secrets:
- *   ALLOWED_EMAILS   comma-separated list of authorised emails
- *   FROM_EMAIL       sender address  e.g. receipts@miltonbadmintonclub.com
- *   FROM_NAME        sender display name  e.g. Milton Badminton Club
+ * Secrets (set via: npx wrangler secret put <NAME>):
+ *   ALLOWED_EMAILS    comma-separated emails e.g. admin@miltonbadmintonclub.com,you@gmail.com
+ *   RESEND_API_KEY    your Resend API key  re_xxxxxxxxxxxx
+ *   FROM_EMAIL        sender address on your verified Resend domain e.g. noreply@miltonbadmintonclub.com
  */
 
 const CORS = {
@@ -29,65 +29,58 @@ function json(body, status = 200) {
   });
 }
 
-function otp() {
+function genOTP() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
-function token() {
+function genToken() {
   return crypto.randomUUID().replace(/-/g, '');
 }
 
-async function sendEmail(env, to, code) {
-  const payload = {
-    personalizations: [{ to: [{ email: to }] }],
-    from: { email: env.FROM_EMAIL, name: env.FROM_NAME || 'Milton Badminton Club' },
-    subject: `Your login code: ${code}`,
-    content: [
-      {
-        type: 'text/html',
-        value: `
-          <div style="font-family:Inter,system-ui,sans-serif;max-width:420px;margin:0 auto;padding:32px 24px;">
-            <div style="text-align:center;margin-bottom:24px;">
-              <div style="display:inline-flex;align-items:center;justify-content:center;
-                          width:48px;height:48px;background:#1a2a6c;border-radius:12px;margin-bottom:12px;">
-                <span style="font-size:22px;">🏸</span>
-              </div>
-              <h2 style="margin:0;font-size:20px;color:#1c2340;font-weight:700;">Milton Badminton Club</h2>
-              <p style="margin:4px 0 0;font-size:13px;color:#7a869a;">Receipt Generator — Login Code</p>
-            </div>
-            <div style="background:#f4f6ff;border-radius:12px;padding:28px;text-align:center;margin-bottom:20px;">
-              <p style="margin:0 0 12px;font-size:13px;color:#3a4464;">Your one-time login code is:</p>
-              <div style="font-size:38px;font-weight:800;letter-spacing:0.2em;color:#1a2a6c;font-family:monospace;">${code}</div>
-              <p style="margin:12px 0 0;font-size:12px;color:#7a869a;">Valid for 10 minutes. Do not share this code.</p>
-            </div>
-            <p style="font-size:12px;color:#a0aec0;text-align:center;margin:0;">
-              If you didn't request this, you can safely ignore it.<br>
-              Milton Badminton Club · 2015 Pan Am Blvd, Milton, ON
-            </p>
-          </div>`,
-      },
-    ],
-  };
+function normaliseEmail(raw) {
+  return raw.trim().toLowerCase();
+}
 
-  const res = await fetch('https://api.mailchannels.net/tx/v1/send', {
+async function sendEmail(env, to, code) {
+  const from = env.FROM_EMAIL || 'noreply@miltonbadmintonclub.com';
+
+  const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    headers: {
+      'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: `Milton Badminton Club <${from}>`,
+      to: [to],
+      subject: 'Your MBC login code',
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+          <h2 style="color:#1a1a1a;margin-bottom:8px">Milton Badminton Club</h2>
+          <p style="color:#555;margin-bottom:24px">Your one-time login code:</p>
+          <div style="font-size:36px;font-weight:700;letter-spacing:8px;color:#1a1a1a;
+                      background:#f5f5f5;border-radius:8px;padding:16px 24px;display:inline-block">
+            ${code}
+          </div>
+          <p style="color:#888;font-size:13px;margin-top:24px">
+            Valid for 10 minutes. Do not share this code.
+          </p>
+        </div>
+      `,
+    }),
   });
 
-  if (!res.ok && res.status !== 202) {
+  if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new Error(`MailChannels ${res.status}: ${text}`);
+    throw new Error(`Resend ${res.status}: ${text}`);
   }
 }
 
 export default {
   async fetch(request, env) {
-    // Preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: CORS });
     }
-
     if (request.method !== 'POST') {
       return json({ error: 'Method not allowed' }, 405);
     }
@@ -97,19 +90,20 @@ export default {
     try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
 
     const allowed = (env.ALLOWED_EMAILS || '')
-      .split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+      .split(',').map(e => normaliseEmail(e)).filter(Boolean);
 
     // ── POST /send-otp ──────────────────────────────────────────────────────
     if (url.pathname === '/send-otp') {
-      const email = (body.email || '').trim().toLowerCase();
-      if (!email) return json({ error: 'Email is required.' }, 400);
+      const raw = (body.email || '').trim();
+      if (!raw) return json({ error: 'Email address is required.' }, 400);
+      const email = normaliseEmail(raw);
 
       if (allowed.length && !allowed.includes(email)) {
-        // Return generic message — don't reveal whether email is registered
+        // Generic response — don't reveal whether address is registered
         return json({ ok: true });
       }
 
-      const code = otp();
+      const code = genOTP();
       await env.MBC_KV.put(`otp:${email}`, code, { expirationTtl: 600 });
 
       try {
@@ -124,8 +118,8 @@ export default {
 
     // ── POST /verify-otp ────────────────────────────────────────────────────
     if (url.pathname === '/verify-otp') {
-      const email = (body.email || '').trim().toLowerCase();
-      const code  = (body.otp  || '').trim();
+      const email = normaliseEmail((body.email || '').trim());
+      const code  = (body.otp || '').trim();
       if (!email || !code) return json({ error: 'Email and code are required.' }, 400);
 
       const stored = await env.MBC_KV.get(`otp:${email}`);
@@ -133,11 +127,9 @@ export default {
         return json({ ok: false, error: 'Invalid or expired code.' }, 401);
       }
 
-      // Consume OTP
       await env.MBC_KV.delete(`otp:${email}`);
 
-      // Issue session token (8 hours)
-      const sess = token();
+      const sess = genToken();
       await env.MBC_KV.put(`session:${sess}`, email, { expirationTtl: 28800 });
 
       return json({ ok: true, token: sess });

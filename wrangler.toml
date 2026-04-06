@@ -1,20 +1,20 @@
 name            = "mbc-receipt-auth"
 main            = "worker.js"
 compatibility_date = "2024-09-23"
-compatibility_flags = ["nodejs_compat"]
 
 # KV namespace — create with:
 #   npx wrangler kv namespace create MBC_KV
-# then paste the id below
 [[kv_namespaces]]
 binding = "MBC_KV"
 id      = "8b6e27e889eb4e62a29cb99dc52f234e"
 
-# Environment variables (non-secret)
-[vars]
-FROM_EMAIL = "receipts@miltonbadmintonclub.com"
-FROM_NAME  = "Milton Badminton Club"
-
-# Secrets — set via CLI, never commit:
+# Secrets — set via CLI, never commit values here:
+#
 #   npx wrangler secret put ALLOWED_EMAILS
-#   value: comma-separated list, e.g.  admin@miltonbadmintonclub.com,coach@miltonbadmintonclub.com
+#   value: comma-separated emails  e.g. admin@miltonbadmintonclub.com,you@gmail.com
+#
+#   npx wrangler secret put RESEND_API_KEY
+#   value: your Resend API key  re_xxxxxxxxxxxx
+#
+#   npx wrangler secret put FROM_EMAIL
+#   value: verified sender address  e.g. noreply@miltonbadmintonclub.com
