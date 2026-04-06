@@ -592,11 +592,11 @@ async function doDownload() {
   const source   = $('live-receipt');
   const filename = ($('f-receipt-no').value || 'receipt') + '.pdf';
 
-  // Clone into a temp body-level container
+  // Clone into a fixed overlay — visibility:hidden keeps it invisible but html2canvas
+  // can measure it at position 0,0 without scroll-offset clipping
   const wrap = document.createElement('div');
-  wrap.style.cssText = 'position:absolute;left:-9999px;top:0;width:700px;';
+  wrap.style.cssText = 'position:fixed;left:0;top:0;width:700px;visibility:hidden;pointer-events:none;z-index:-1;';
   const clone = source.cloneNode(true);
-  // Override styles that prevent html2canvas from measuring full height
   clone.style.cssText = 'border-radius:0;box-shadow:none;max-width:none;overflow:visible;width:700px;';
   wrap.appendChild(clone);
   document.body.appendChild(wrap);
@@ -624,6 +624,8 @@ async function doDownload() {
           logging: false,
           backgroundColor: '#ffffff',
           windowWidth: 700,
+          scrollX: 0,
+          scrollY: 0,
           width:  contentW,
           height: contentH,
         },
