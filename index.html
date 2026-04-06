@@ -48,9 +48,6 @@
     }
     .lock-input::placeholder { color:rgba(255,255,255,.28); }
     .lock-input:focus { border-color:rgba(255,255,255,.45); }
-    .otp-input {
-      font-size:26px; font-weight:700; letter-spacing:.35em; font-family:'Barlow',monospace;
-    }
     .lock-btn {
       margin-top:14px; width:100%; padding:13px;
       background:linear-gradient(135deg,#2d3db0,#4b5fe0); color:#fff;
@@ -60,19 +57,8 @@
     }
     .lock-btn:hover:not(:disabled) { opacity:.9; transform:translateY(-1px); }
     .lock-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
-    .lock-hint {
-      margin-top:14px; font-size:12.5px; color:rgba(255,255,255,.5); line-height:1.6;
-    }
-    .lock-hint b { color:rgba(255,255,255,.8); font-weight:600; }
-    .lock-resend {
-      background:none; border:none; color:rgba(255,255,255,.45); font-size:12px;
-      cursor:pointer; text-decoration:underline; margin-top:10px; padding:0; font-family:'Inter',sans-serif;
-    }
-    .lock-resend:hover { color:rgba(255,255,255,.75); }
     .lock-error  { margin-top:12px; font-size:12.5px; color:#f87171; min-height:18px; }
     .lock-footer { margin-top:24px; font-size:11px; color:rgba(255,255,255,.2); }
-    .lock-step   { display:none; }
-    .lock-step.active { display:block; }
 
     /* ─── LAYOUT ──────────────────────────────────── */
     .editor-shell {
@@ -283,22 +269,9 @@
     </div>
     <h1>Milton Badminton Club</h1>
 
-    <!-- Step 1: Email -->
-    <div class="lock-step active" id="step-email">
-      <p class="lock-sub">Enter your email to receive a login code</p>
-      <input class="lock-input" id="lock-email" type="email" placeholder="you@example.com" autocomplete="email"/>
-      <button class="lock-btn" id="btn-send" onclick="sendOTP()">Send code</button>
-    </div>
-
-    <!-- Step 2: OTP -->
-    <div class="lock-step" id="step-otp">
-      <p class="lock-sub">Check your inbox for the 6-digit code</p>
-      <div class="lock-hint" id="otp-hint"></div>
-      <input class="lock-input otp-input" id="lock-otp" type="text"
-             inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="000000" autocomplete="one-time-code"/>
-      <button class="lock-btn" id="btn-verify" onclick="verifyOTP()">Verify</button>
-      <div><button class="lock-resend" onclick="backToEmail()">← Use a different email</button></div>
-    </div>
+    <p class="lock-sub">Enter the password to access the receipt generator</p>
+    <input class="lock-input" id="lock-password" type="password" placeholder="Password" autocomplete="current-password"/>
+    <button class="lock-btn" id="btn-login" onclick="login()">Unlock</button>
 
     <div class="lock-error" id="lock-error"></div>
     <div class="lock-footer">Secured access · Milton Badminton Club</div>
@@ -509,76 +482,34 @@ function dismissLock() {
   setTimeout(() => ls.remove(), 420);
 }
 
-async function sendOTP() {
-  const email = document.getElementById('lock-email').value.trim();
-  if (!email) { setLockError('Please enter your email.'); return; }
+async function login() {
+  const password = document.getElementById('lock-password').value.trim();
+  if (!password) { setLockError('Please enter the password.'); return; }
 
-  const btn = document.getElementById('btn-send');
+  const btn = document.getElementById('btn-login');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>&nbsp;Sending…';
+  btn.innerHTML = '<span class="spinner"></span>&nbsp;Unlocking…';
   setLockError('');
 
   try {
-    const res = await fetch(WORKER_URL + '/send-otp', {
+    const res = await fetch(WORKER_URL + '/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ password }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to send code.');
-
-    // Always show OTP step — don't reveal whether email is registered
-    document.getElementById('otp-hint').innerHTML =
-      'Code sent to <b>' + email.replace(/./g, (c, i, s) =>
-        i > 1 && i < s.indexOf('@') - 1 ? '•' : c) + '</b>';
-    document.getElementById('step-email').classList.remove('active');
-    document.getElementById('step-otp').classList.add('active');
-    setTimeout(() => document.getElementById('lock-otp').focus(), 50);
-  } catch (e) {
-    setLockError(e.message || 'Network error. Please try again.');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = 'Send code';
-  }
-}
-
-async function verifyOTP() {
-  const email = document.getElementById('lock-email').value.trim();
-  const otp   = document.getElementById('lock-otp').value.trim();
-  if (otp.length !== 6) { setLockError('Enter the 6-digit code from your email.'); return; }
-
-  const btn = document.getElementById('btn-verify');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>&nbsp;Verifying…';
-  setLockError('');
-
-  try {
-    const res = await fetch(WORKER_URL + '/verify-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, otp }),
-    });
-    const data = await res.json();
-    if (!res.ok || !data.ok) throw new Error(data.error || 'Invalid code.');
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Incorrect password.');
 
     sessionStorage.setItem(SESSION_KEY, data.token);
     dismissLock();
   } catch (e) {
     setLockError(e.message || 'Network error. Please try again.');
-    document.getElementById('lock-otp').value = '';
-    document.getElementById('lock-otp').focus();
+    document.getElementById('lock-password').value = '';
+    document.getElementById('lock-password').focus();
   } finally {
     btn.disabled = false;
-    btn.innerHTML = 'Verify';
+    btn.innerHTML = 'Unlock';
   }
-}
-
-function backToEmail() {
-  setLockError('');
-  document.getElementById('lock-otp').value = '';
-  document.getElementById('step-otp').classList.remove('active');
-  document.getElementById('step-email').classList.add('active');
-  setTimeout(() => document.getElementById('lock-email').focus(), 50);
 }
 
 async function checkSession() {
@@ -698,16 +629,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // Keyboard shortcuts
-  $('lock-email').addEventListener('keydown', function(e) { if (e.key === 'Enter') sendOTP(); });
-  $('lock-otp').addEventListener('keydown', function(e) { if (e.key === 'Enter') verifyOTP(); });
-  $('lock-otp').addEventListener('input', function() {
-    // Auto-submit when 6 digits entered
-    if (this.value.replace(/\D/g,'').length === 6) {
-      this.value = this.value.replace(/\D/g,'');
-      verifyOTP();
-    }
-  });
+  // Keyboard shortcut
+  $('lock-password').addEventListener('keydown', function(e) { if (e.key === 'Enter') login(); });
 
   // Default dates
   const today = new Date().toISOString().slice(0, 10);

@@ -10,9 +10,5 @@ id      = "8b6e27e889eb4e62a29cb99dc52f234e"
 
 # Secrets — set via CLI, never commit values here:
 #
-#   npx wrangler secret put ALLOWED_EMAILS
-#   value: comma-separated emails  e.g. admin@miltonbadmintonclub.com,you@gmail.com
-#
-#   npx wrangler secret put RESEND_API_KEY
-#   value: your Resend API key  re_xxxxxxxxxxxx
-#
+#   npx wrangler secret put ACCESS_PASSWORD
+#   value: the shared password for the receipt generator
