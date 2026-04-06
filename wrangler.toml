@@ -8,7 +8,7 @@ compatibility_flags = ["nodejs_compat"]
 # then paste the id below
 [[kv_namespaces]]
 binding = "MBC_KV"
-id      = "PASTE_YOUR_KV_NAMESPACE_ID_HERE"
+id      = "8b6e27e889eb4e62a29cb99dc52f234e"
 
 # Environment variables (non-secret)
 [vars]
