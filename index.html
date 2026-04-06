@@ -254,13 +254,16 @@
     @keyframes spin { to { transform:rotate(360deg); } }
 
     /* ── Print ── */
-    #print-area { display: none; }
+    #print-area {
+      position: fixed; left: -9999px; top: 0;
+      width: 794px; overflow: hidden; height: 0;
+    }
     @media print {
       @page { margin: 10mm; size: A4 portrait; }
       body > *:not(#print-area) { display: none !important; }
       #print-area {
-        display: block !important;
-        width: 100%;
+        position: static; left: auto; top: auto;
+        width: 100%; overflow: visible; height: auto;
       }
       #print-area .receipt-wrapper {
         border-radius: 0 !important;
@@ -627,9 +630,14 @@ function doDownload() {
 
   const prev = document.title;
   document.title = $('f-receipt-no').value || 'MBC-Receipt';
+
+  window.onafterprint = () => {
+    area.innerHTML = '';
+    document.title = prev;
+    window.onafterprint = null;
+  };
+
   window.print();
-  document.title = prev;
-  area.innerHTML = '';
 }
 
 /* ═══ INIT ══════════════════════════════════════════ */
