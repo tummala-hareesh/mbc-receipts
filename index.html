@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Milton Badminton Club — Receipt Generator</title>
   <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -253,9 +252,20 @@
       display:inline-block;
     }
     @keyframes spin { to { transform:rotate(360deg); } }
+
+    @media print {
+      @page { margin: 10mm; size: A4 portrait; }
+      body > *                    { display: none !important; }
+      #print-area                 { display: block !important; }
+      #print-area .receipt-wrapper{ border-radius: 0; box-shadow: none; max-width: none; width: 100%; }
+    }
+    #print-area { display: none; }
   </style>
 </head>
 <body>
+
+<!-- ══ PRINT AREA (hidden — shown only during print) ══ -->
+<div id="print-area"></div>
 
 <!-- ══ LOCK SCREEN ══════════════════════════════════ -->
 <div id="lock-screen">
@@ -586,43 +596,16 @@ document.addEventListener('click', function(e) {
 });
 
 /* ═══ PDF DOWNLOAD ══════════════════════════════════ */
-async function doDownload() {
+function doDownload() {
   updatePreview();
-
-  const source   = $('live-receipt');
-  const filename = ($('f-receipt-no').value || 'receipt') + '.pdf';
-
-  const btns = [$('btn-pdf'), $('btn-modal-dl')];
-  const origHTML = btns.map(b => b ? b.innerHTML : '');
-  btns.forEach(b => { if (b) { b.disabled = true; b.innerHTML = '<span class="spinner"></span>&nbsp;Generating…'; } });
-
-  // Render clone at fixed 794px width (A4 @ 96dpi), invisible overlay at 0,0
-  // opacity:0 keeps it invisible but fully rendered — unlike visibility:hidden
-  const wrap = document.createElement('div');
-  wrap.style.cssText = 'position:fixed;top:0;left:0;width:794px;opacity:0;pointer-events:none;z-index:99999;';
-  const clone = source.cloneNode(true);
-  clone.style.cssText = 'width:794px;max-width:none;overflow:visible;border-radius:0;box-shadow:none;';
-  wrap.appendChild(clone);
-  document.body.appendChild(wrap);
-
-  // Let the browser finish rendering before html2canvas captures
-  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-
-  try {
-    await html2pdf()
-      .set({
-        margin:      [10, 10, 10, 10],
-        filename,
-        image:       { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: 794 },
-        jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      })
-      .from(clone)
-      .save();
-  } finally {
-    document.body.removeChild(wrap);
-    btns.forEach((b, i) => { if (b) { b.disabled = false; b.innerHTML = origHTML[i]; } });
-  }
+  const printArea = $('print-area');
+  printArea.innerHTML = '';
+  printArea.appendChild($('live-receipt').cloneNode(true));
+  const prev = document.title;
+  document.title = $('f-receipt-no').value || 'receipt';
+  window.print();
+  document.title = prev;
+  printArea.innerHTML = '';
 }
 
 /* ═══ INIT ══════════════════════════════════════════ */
