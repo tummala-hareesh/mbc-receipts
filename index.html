@@ -596,16 +596,17 @@ async function doDownload() {
   const origHTML = btns.map(b => b ? b.innerHTML : '');
   btns.forEach(b => { if (b) { b.disabled = true; b.innerHTML = '<span class="spinner"></span>&nbsp;Generating…'; } });
 
-  // Temporarily set overflow:visible on source + all ancestors so html2canvas
-  // captures the full element without clipping
-  const saved = [];
-  let node = source;
-  while (node && node.tagName !== 'BODY') {
-    saved.push({ node, overflow: node.style.overflow, height: node.style.height });
-    node.style.overflow = 'visible';
-    node.style.height   = 'auto';
-    node = node.parentElement;
-  }
+  // Render clone at fixed 794px width (A4 @ 96dpi), invisible overlay at 0,0
+  // opacity:0 keeps it invisible but fully rendered — unlike visibility:hidden
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;top:0;left:0;width:794px;opacity:0;pointer-events:none;z-index:99999;';
+  const clone = source.cloneNode(true);
+  clone.style.cssText = 'width:794px;max-width:none;overflow:visible;border-radius:0;box-shadow:none;';
+  wrap.appendChild(clone);
+  document.body.appendChild(wrap);
+
+  // Let the browser finish rendering before html2canvas captures
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
   try {
     await html2pdf()
@@ -613,16 +614,13 @@ async function doDownload() {
         margin:      [10, 10, 10, 10],
         filename,
         image:       { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
+        html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: 794 },
         jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
       })
-      .from(source)
+      .from(clone)
       .save();
   } finally {
-    saved.forEach(({ node, overflow, height }) => {
-      node.style.overflow = overflow;
-      node.style.height   = height;
-    });
+    document.body.removeChild(wrap);
     btns.forEach((b, i) => { if (b) { b.disabled = false; b.innerHTML = origHTML[i]; } });
   }
 }
