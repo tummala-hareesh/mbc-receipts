@@ -596,39 +596,33 @@ async function doDownload() {
   const origHTML = btns.map(b => b ? b.innerHTML : '');
   btns.forEach(b => { if (b) { b.disabled = true; b.innerHTML = '<span class="spinner"></span>&nbsp;Generating…'; } });
 
+  // Temporarily set overflow:visible on source + all ancestors so html2canvas
+  // captures the full element without clipping
+  const saved = [];
+  let node = source;
+  while (node && node.tagName !== 'BODY') {
+    saved.push({ node, overflow: node.style.overflow, height: node.style.height });
+    node.style.overflow = 'visible';
+    node.style.height   = 'auto';
+    node = node.parentElement;
+  }
+
   try {
     await html2pdf()
       .set({
-        margin:   [10, 10, 10, 10],
+        margin:      [10, 10, 10, 10],
         filename,
-        image:    { type: 'jpeg', quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff',
-          windowWidth: 794,
-          onclone: (_doc, el) => {
-            // Fix overflow so full height is captured
-            el.style.overflow    = 'visible';
-            el.style.borderRadius = '0';
-            el.style.boxShadow   = 'none';
-            el.style.maxWidth    = 'none';
-            el.style.width       = '774px';
-            // Remove overflow:hidden from all ancestors in the clone
-            let p = el.parentElement;
-            while (p && p.tagName !== 'BODY') {
-              p.style.overflow = 'visible';
-              p.style.height   = 'auto';
-              p = p.parentElement;
-            }
-          },
-        },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        image:       { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
+        jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
       })
       .from(source)
       .save();
   } finally {
+    saved.forEach(({ node, overflow, height }) => {
+      node.style.overflow = overflow;
+      node.style.height   = height;
+    });
     btns.forEach((b, i) => { if (b) { b.disabled = false; b.innerHTML = origHTML[i]; } });
   }
 }
