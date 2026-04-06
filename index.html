@@ -252,9 +252,28 @@
       display:inline-block;
     }
     @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* ── Print ── */
+    #print-area { display: none; }
+    @media print {
+      @page { margin: 10mm; size: A4 portrait; }
+      body > *:not(#print-area) { display: none !important; }
+      #print-area {
+        display: block !important;
+        width: 100%;
+      }
+      #print-area .receipt-wrapper {
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        max-width: none !important;
+        width: 100% !important;
+      }
+    }
   </style>
 </head>
 <body>
+
+<div id="print-area"></div>
 
 <!-- ══ LOCK SCREEN ══════════════════════════════════ -->
 <div id="lock-screen">
@@ -586,50 +605,31 @@ document.addEventListener('click', function(e) {
 
 /* ═══ PDF DOWNLOAD ══════════════════════════════════ */
 function doDownload() {
-  // Clone the receipt element
+  updatePreview();
+
+  // Build clone with explicit form values injected
   const clone = $('live-receipt').cloneNode(true);
   clone.removeAttribute('id');
-  clone.style.cssText = 'border-radius:0;box-shadow:none;max-width:none;width:100%;';
-
-  // Explicitly inject all form values into the clone — independent of live preview state
   const set = (id, val) => { const el = clone.querySelector('#' + id); if (el) el.textContent = val; };
-  set('lp-receipt-no',   $('f-receipt-no').value   || '—');
+  set('lp-receipt-no',   $('f-receipt-no').value  || '—');
   set('lp-issue-date',   fmtDate($('f-issue-date').value));
-  set('lp-name',         $('f-name').value          || '—');
-  set('lp-member-email', $('f-member-email').value  || '—');
+  set('lp-name',         $('f-name').value         || '—');
+  set('lp-member-email', $('f-member-email').value || '—');
   set('lp-method',       $('f-method').value);
   set('lp-txn-date',     fmtDate($('f-txn-date').value));
   const pf = $('f-period-from').value, pt = $('f-period-to').value;
   set('lp-period', (pf && pt) ? fmtDate(pf) + ' \u2013 ' + fmtDate(pt) : '—');
   set('lp-amount', '$' + (parseFloat($('f-amount').value) || 0).toFixed(2) + ' CAD');
 
-  // Build standalone HTML document with all styles embedded
-  const styles = Array.from(document.querySelectorAll('style')).map(s => s.innerHTML).join('\n');
-  const html = `<!DOCTYPE html><html><head>
-    <meta charset="UTF-8"/>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;900&family=Inter:wght@400;500;600;700&display=swap"/>
-    <style>
-      @page { margin:10mm; size:A4 portrait; }
-      body  { margin:0; padding:10mm; background:#fff; }
-      ${styles}
-    </style>
-  </head><body>${clone.outerHTML}</body></html>`;
+  const area = $('print-area');
+  area.innerHTML = '';
+  area.appendChild(clone);
 
-  // Load into hidden iframe via Blob URL, then print
-  const blob = new Blob([html], { type: 'text/html; charset=utf-8' });
-  const url  = URL.createObjectURL(blob);
-  const iframe = document.createElement('iframe');
-  iframe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;border:none;';
-  document.body.appendChild(iframe);
-
-  iframe.onload = () => {
-    setTimeout(() => {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-      setTimeout(() => { document.body.removeChild(iframe); URL.revokeObjectURL(url); }, 1000);
-    }, 600);
-  };
-  iframe.src = url;
+  const prev = document.title;
+  document.title = $('f-receipt-no').value || 'MBC-Receipt';
+  window.print();
+  document.title = prev;
+  area.innerHTML = '';
 }
 
 /* ═══ INIT ══════════════════════════════════════════ */
