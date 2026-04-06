@@ -592,11 +592,12 @@ async function doDownload() {
   const source   = $('live-receipt');
   const filename = ($('f-receipt-no').value || 'receipt') + '.pdf';
 
-  // Clone into a temp body-level container — avoids html2canvas off-screen render issues
+  // Clone into a temp body-level container
   const wrap = document.createElement('div');
   wrap.style.cssText = 'position:absolute;left:-9999px;top:0;width:700px;';
   const clone = source.cloneNode(true);
-  clone.style.cssText = 'border-radius:0;box-shadow:none;max-width:none;';
+  // Override styles that prevent html2canvas from measuring full height
+  clone.style.cssText = 'border-radius:0;box-shadow:none;max-width:none;overflow:visible;width:700px;';
   wrap.appendChild(clone);
   document.body.appendChild(wrap);
 
@@ -605,13 +606,28 @@ async function doDownload() {
   btns.forEach(b => { if (b) { b.disabled = true; b.innerHTML = '<span class="spinner"></span>&nbsp;Generating…'; } });
 
   try {
+    const margin  = 10; // mm
+    const pageW   = 210; // A4 width mm
+    const contentH = clone.scrollHeight; // px
+    const contentW = 700; // px
+    const pageH   = (contentH / contentW) * (pageW - margin * 2) + margin * 2;
+
     await html2pdf()
       .set({
-        margin:      [8, 8, 8, 8],
+        margin:      [margin, margin, margin, margin],
         filename,
         image:       { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: 700 },
-        jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          windowWidth: 700,
+          width:  contentW,
+          height: contentH,
+        },
+        jsPDF: { unit: 'mm', format: [pageW, pageH], orientation: 'portrait' }
       })
       .from(clone)
       .save();
