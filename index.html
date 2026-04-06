@@ -592,9 +592,13 @@ async function doDownload() {
   const source   = $('live-receipt');
   const filename = ($('f-receipt-no').value || 'receipt') + '.pdf';
 
-  // Briefly move off-screen so html2pdf can measure it
-  const savedStyle = source.style.cssText;
-  source.style.cssText = 'position:fixed;left:-9999px;top:0;width:700px;z-index:-1;border-radius:0;box-shadow:none;';
+  // Clone into a temp body-level container — avoids html2canvas off-screen render issues
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:absolute;left:-9999px;top:0;width:700px;';
+  const clone = source.cloneNode(true);
+  clone.style.cssText = 'border-radius:0;box-shadow:none;max-width:none;';
+  wrap.appendChild(clone);
+  document.body.appendChild(wrap);
 
   const btns = [$('btn-pdf'), $('btn-modal-dl')];
   const origHTML = btns.map(b => b ? b.innerHTML : '');
@@ -606,13 +610,13 @@ async function doDownload() {
         margin:      [8, 8, 8, 8],
         filename,
         image:       { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
+        html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: 700 },
         jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' }
       })
-      .from(source)
+      .from(clone)
       .save();
   } finally {
-    source.style.cssText = savedStyle;
+    document.body.removeChild(wrap);
     btns.forEach((b, i) => { if (b) { b.disabled = false; b.innerHTML = origHTML[i]; } });
   }
 }
