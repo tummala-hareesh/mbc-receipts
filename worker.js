@@ -13,7 +13,6 @@
  * Secrets (set via: npx wrangler secret put <NAME>):
  *   ALLOWED_EMAILS    comma-separated emails e.g. admin@miltonbadmintonclub.com,you@gmail.com
  *   RESEND_API_KEY    your Resend API key  re_xxxxxxxxxxxx
- *   FROM_EMAIL        sender address on your verified Resend domain e.g. noreply@miltonbadmintonclub.com
  */
 
 const CORS = {
@@ -42,7 +41,7 @@ function normaliseEmail(raw) {
 }
 
 async function sendEmail(env, to, code) {
-  const from = env.FROM_EMAIL || 'noreply@miltonbadmintonclub.com';
+  const from = 'noreply@miltonbadmintonclub.com';
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',

@@ -133,9 +133,6 @@ npx wrangler secret put ALLOWED_EMAILS
 npx wrangler secret put RESEND_API_KEY
 # e.g.  re_xxxxxxxxxxxxxxxxxxxx
 
-# Verified sender address on your domain
-npx wrangler secret put FROM_EMAIL
-# e.g.  noreply@miltonbadmintonclub.com
 ```
 
 ---

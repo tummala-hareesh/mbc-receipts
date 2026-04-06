@@ -16,5 +16,3 @@ id      = "8b6e27e889eb4e62a29cb99dc52f234e"
 #   npx wrangler secret put RESEND_API_KEY
 #   value: your Resend API key  re_xxxxxxxxxxxx
 #
-#   npx wrangler secret put FROM_EMAIL
-#   value: verified sender address  e.g. noreply@miltonbadmintonclub.com
