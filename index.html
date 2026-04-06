@@ -592,49 +592,43 @@ async function doDownload() {
   const source   = $('live-receipt');
   const filename = ($('f-receipt-no').value || 'receipt') + '.pdf';
 
-  // Clone into a fixed overlay — visibility:hidden keeps it invisible but html2canvas
-  // can measure it at position 0,0 without scroll-offset clipping
-  const wrap = document.createElement('div');
-  wrap.style.cssText = 'position:fixed;left:0;top:0;width:700px;visibility:hidden;pointer-events:none;z-index:-1;';
-  const clone = source.cloneNode(true);
-  clone.style.cssText = 'border-radius:0;box-shadow:none;max-width:none;overflow:visible;width:700px;';
-  wrap.appendChild(clone);
-  document.body.appendChild(wrap);
-
   const btns = [$('btn-pdf'), $('btn-modal-dl')];
   const origHTML = btns.map(b => b ? b.innerHTML : '');
   btns.forEach(b => { if (b) { b.disabled = true; b.innerHTML = '<span class="spinner"></span>&nbsp;Generating…'; } });
 
   try {
-    const margin  = 10; // mm
-    const pageW   = 210; // A4 width mm
-    const contentH = clone.scrollHeight; // px
-    const contentW = 700; // px
-    const pageH   = (contentH / contentW) * (pageW - margin * 2) + margin * 2;
-
     await html2pdf()
       .set({
-        margin:      [margin, margin, margin, margin],
+        margin:   [10, 10, 10, 10],
         filename,
-        image:       { type: 'jpeg', quality: 0.98 },
+        image:    { type: 'jpeg', quality: 0.98 },
         html2canvas: {
           scale: 2,
           useCORS: true,
-          allowTaint: true,
           logging: false,
           backgroundColor: '#ffffff',
-          windowWidth: 700,
-          scrollX: 0,
-          scrollY: 0,
-          width:  contentW,
-          height: contentH,
+          windowWidth: 794,
+          onclone: (_doc, el) => {
+            // Fix overflow so full height is captured
+            el.style.overflow    = 'visible';
+            el.style.borderRadius = '0';
+            el.style.boxShadow   = 'none';
+            el.style.maxWidth    = 'none';
+            el.style.width       = '774px';
+            // Remove overflow:hidden from all ancestors in the clone
+            let p = el.parentElement;
+            while (p && p.tagName !== 'BODY') {
+              p.style.overflow = 'visible';
+              p.style.height   = 'auto';
+              p = p.parentElement;
+            }
+          },
         },
-        jsPDF: { unit: 'mm', format: [pageW, pageH], orientation: 'portrait' }
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
       })
-      .from(clone)
+      .from(source)
       .save();
   } finally {
-    document.body.removeChild(wrap);
     btns.forEach((b, i) => { if (b) { b.disabled = false; b.innerHTML = origHTML[i]; } });
   }
 }
